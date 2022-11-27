@@ -1,0 +1,15 @@
+.item {
+    color: black;
+    text-decoration: none;
+}
+
+.sidebar {
+    grid-area: sidebar;
+    background-color: #E1E3E6;
+    padding: 20px;
+}
+
+.item a.active {
+    color: black;
+    text-decoration: none;
+}
