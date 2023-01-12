@@ -1,49 +1,33 @@
 import React from "react";
-import {
-    follow,
-    setCurrentPage,
-    setCurrentPagesShowed,
-    setFetching,
-    setTotalUsersCount,
-    setUsers,
-    unfollow
-} from "../../redux/usersReducer";
+import {getUsersThunk, onFollow, onUnfollow, setCurrentPage, setCurrentPagesShowed} from "../../redux/usersReducer";
 import {connect} from "react-redux";
-import axios from "axios";
 import Users from "./Users";
 import Preloader from "../common/Preloader";
+import {compose} from "redux";
+import {withAuthRedirect} from "../common/withAuthRedirect";
 
 class UsersContainer extends React.Component {
 
     componentDidMount() {
-        this.props.setFetching(true);
-
-        axios.get(`https://social-network.samuraijs.com/api/1.0/users?count=${this.props.pageSize}&page=${this.props.currentPage}`,
-            {withCredentials: true})
-            .then(response => {
-                this.props.setUsers(response.data.items);
-                this.props.setTotalUsersCount(response.data.totalCount);
-                this.props.setFetching(false);
-            }
-        );
+        this.props.getUsersThunk(this.props.pageSize, this.props.currentPage);
     }
 
     onPageChanged = (p) => {
-        this.props.setFetching(true);
-
         let pageElemNumber = Math.ceil(this.props.totalUsersCount / this.props.pageSize);
 
         this.props.setCurrentPage(p);
-        axios.get(`https://social-network.samuraijs.com/api/1.0/users?count=${this.props.pageSize}&page=${p}`,
-            {withCredentials: true})
-            .then(response => {
-                this.props.setUsers(response.data.items);
-                this.props.setFetching(false);
-            }
-        );
+        this.props.getUsersThunk(this.props.pageSize, p);
+
+        //own pagination, work like shit(I guess). check currentPage and showed and process needed case...like that, i dont remember already:) )
+        this.analyzePage(p, pageElemNumber);
+    }
+
+    //TODO: extract to thunk????
+    analyzePage = (p, pageElemNumber) => {
         if (this.props.currentPagesShowed.at(-1) === p && p !== pageElemNumber - 1) {
             this.props.setCurrentPagesShowed([p - 1, p, p + 1, p + 2, p + 3])
         }
+
         if (p === 1 && this.props.currentPagesShowed.at(0) !== p + 1) {
             this.props.setCurrentPagesShowed([2, 3, 4])
         }
@@ -59,34 +43,6 @@ class UsersContainer extends React.Component {
         }
     }
 
-    onFollow = (userId) => {
-        axios.post(`https://social-network.samuraijs.com/api/1.0/follow/${userId}`, {},
-            {
-                withCredentials: true,
-                headers: {"API-KEY" : "7abf22ed-c552-4e1f-a6f6-db1026ab5fed"}
-            })
-            .then(response => {
-                    if (response.data.resultCode === 0) {
-                        this.props.follow(userId);
-                    }
-                }
-            );
-    }
-
-    onUnfollow = (userId) => {
-        axios.delete(`https://social-network.samuraijs.com/api/1.0/follow/${userId}`,
-            {
-                withCredentials: true,
-                headers: {"API-KEY" : "7abf22ed-c552-4e1f-a6f6-db1026ab5fed"}
-            })
-            .then(response => {
-                    if (response.data.resultCode === 0) {
-                        this.props.unfollow(userId);
-                    }
-                }
-            );
-    }
-
     render() {
         return <div>
             {this.props.isFetching ? <Preloader/> : null}
@@ -96,11 +52,9 @@ class UsersContainer extends React.Component {
                    pageSize={this.props.pageSize}
                    currentPagesShowed={this.props.currentPagesShowed}
                    onPageChanged={this.onPageChanged}
-                    onFollow={this.onFollow}
-                   onUnfollow={this.onUnfollow}
+                   onFollow={this.props.onFollow}
+                   onUnfollow={this.props.onUnfollow}
             />
-                   {/*// follow={this.props.follow}*/}
-                   {/*// unfollow={this.props.unfollow}/>*/}
         </div>
     }
 
@@ -116,31 +70,7 @@ let mapStateToProps = (state) => {
         isFetching: state.usersPage.isFetching
     }
 }
-
-// let mapDispatchToProps = (dispatch) => {
-//     return {
-//         follow: (userId) => {
-//             dispatch(follow(userId))
-//         },
-//         unfollow: (userId) => {
-//             dispatch(unfollow(userId))
-//         },
-//         setUsers: (users) => {
-//             dispatch(setUsers(users))
-//         },
-//         setTotalUsersCount: (totalUsersCount) => {
-//             dispatch(setTotalUsersCount(totalUsersCount))
-//         },
-//         setCurrentPage: (currentPage) => {
-//             dispatch(setCurrentPage(currentPage))
-//         },
-//         setCurrentPagesShowed: (currentPagesShowed) => {
-//             dispatch(setCurrentPagesShowed(currentPagesShowed))
-//         },
-//         setFetching: (isFetching) => {
-//             dispatch(setFetching(isFetching))
-//         }
-//     }
-// }
-
-export default connect(mapStateToProps, {follow, unfollow, setUsers, setTotalUsersCount, setCurrentPage, setCurrentPagesShowed, setFetching})(UsersContainer)
+export default compose(
+    connect(mapStateToProps, {setCurrentPage, setCurrentPagesShowed, getUsersThunk, onFollow, onUnfollow}),
+    withAuthRedirect)(UsersContainer)
+// export default connect(mapStateToProps, {setCurrentPage, setCurrentPagesShowed, getUsersThunk, onFollow, onUnfollow})(UsersContainer)
